@@ -27,9 +27,18 @@ class VoiceInterviewService:
         try:
             logger.info(f"[VoiceInterviewService] Starting voice interview for {participant_name}")
             
+            # Validate InterviewConfig
+            config_data = config.model_dump()
+            logger.debug(f"[VoiceInterviewService] InterviewConfig data: {config_data}")
+            required_fields = ["experience_level", "position", "language"]  # adjust as needed
+            missing_fields = [f for f in required_fields if f not in config_data or config_data[f] is None]
+            if missing_fields:
+                logger.error(f"[VoiceInterviewService] Missing required config fields: {missing_fields}")
+                raise ValueError(f"Missing required config fields: {missing_fields}")
+            
             # Create LiveKit room
             room_data = await self.livekit.create_interview_room(
-                config.model_dump(),
+                config_data,
                 participant_name
             )
             
@@ -71,7 +80,7 @@ class VoiceInterviewService:
             
         except Exception as error:
             logger.error(f"[VoiceInterviewService] Error starting voice interview: {error}")
-            raise Exception("Failed to start voice interview")
+            raise Exception(f"Failed to start voice interview: {error}")
     
     def get_session_status(self, session_id: str) -> Dict[str, Any]:
         """Get interview session status"""

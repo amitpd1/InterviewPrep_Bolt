@@ -48,7 +48,7 @@ class AnalyticsRequest(BaseModel):
 class VoiceInterviewStartRequest(BaseModel):
     """Request to start voice interview"""
     config: InterviewConfig
-    participant_name: str = Field(..., description="Participant name")
+    participant_name: Optional[str] = Field(None, description="Participant name")
     enable_ai_agent: bool = Field(True, description="Enable AI agent")
     agent_provider: Literal["openai", "google"] = Field("google", description="AI agent provider")
 

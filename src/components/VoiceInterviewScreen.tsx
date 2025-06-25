@@ -31,6 +31,7 @@ import { AIInterviewSimulator } from '../utils/aiSimulator';
 import { useLiveKit } from '../hooks/useLiveKit';
 import { VoiceInterviewService } from '../services/voiceInterviewService';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { toPythonInterviewConfig } from '../services/apiService';
 
 interface VoiceInterviewScreenProps {
   config: InterviewConfig;
@@ -158,7 +159,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
       try {
         // Initialize AudioContext for better audio control
         if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioContextRef.current = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
           console.log('🎵 AudioContext initialized');
         }
 
@@ -214,7 +215,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
           console.log(`🎵 Creating new audio element for track: ${trackId}`);
           
           // Create audio element
-          const audioElement = document.createElement('audio');
+          const audioElement = document.createElement('audio') as any;
           audioElement.autoplay = true;
           audioElement.playsInline = true;
           audioElement.volume = 1.0;
@@ -248,7 +249,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
             setIsAISpeaking(false);
           };
           
-          audioElement.onerror = (error) => {
+          audioElement.onerror = (error: any) => {
             console.error(`❌ Audio error for track ${trackId}:`, error);
             setIsAISpeaking(false);
           };
@@ -281,7 +282,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
                   console.log(`✅ Audio autoplay successful for track: ${trackId}`);
                   setShowAutoplayPrompt(false);
                 })
-                .catch(error => {
+                .catch((error: any) => {
                   console.warn(`⚠️ Autoplay prevented for track ${trackId}:`, error);
                   if (error.name === 'NotAllowedError') {
                     setShowAutoplayPrompt(true);
@@ -405,7 +406,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
   // Enable audio function for autoplay prompt
   const enableAudio = () => {
     audioElementsRef.current.forEach(audioElement => {
-      audioElement.play().catch(error => {
+      audioElement.play().catch((error: any) => {
         console.error('Failed to enable audio:', error);
       });
     });
@@ -455,7 +456,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
         }, 500);
       };
       
-      utterance.onerror = (error) => {
+      utterance.onerror = (error: any) => {
         console.error('❌ Fallback TTS error:', error);
         setIsAISpeaking(false);
         setAudioTestResult('failed');
@@ -481,9 +482,11 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
       console.log('[VoiceInterview] ========== STARTING VOICE INTERVIEW ==========');
       console.log('[VoiceInterview] Selected provider:', selectedProvider);
       
-      // Start voice interview session with selected provider
+      // Do NOT transform config here. Pass the original config (camelCase) to the service.
+      // The service layer should handle the snake_case transformation before sending to the backend.
+
       const session = await VoiceInterviewService.startVoiceInterview(
-        config, 
+        config, // pass InterviewConfig, not snake_case
         participantName, 
         true, // enableAIAgent
         selectedProvider // agentProvider
@@ -502,16 +505,16 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
         provider: session.agentProvider,
         conversational: session.conversationalMode
       });
-      
+
       // Clear conversation history - it will be populated by data messages
       setConversationHistory([]);
       setCurrentQuestion('');
-      
+
     } catch (error) {
       console.error('[VoiceInterview] ❌ Error starting voice interview:', error);
       setConnectionStatus('error');
       setIsThinking(false);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       alert(`Failed to start voice interview: ${errorMessage}`);
     }
@@ -636,7 +639,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
   const progress = simulator.getProgress();
 
   // Safe participant count with null checks
-  const participantCount = room?.participants?.size ?? 0;
+  const participantCount = room?.numParticipants ?? 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
@@ -818,7 +821,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
                   <AlertCircle className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
                   <div className="text-red-800 text-sm">
                     <p className="font-medium mb-1">Connection Error</p>
-                    <p className="mb-2">{livekitError}</p>
+                    <p className="mb-2">{livekitError.message}</p>
                   </div>
                 </div>
               </div>
@@ -1136,4 +1139,5 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
       </div>
     </div>
   );
+};
 };

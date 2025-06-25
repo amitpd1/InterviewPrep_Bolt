@@ -82,20 +82,9 @@ app.add_middleware(
 
 # Health check endpoint
 @app.get("/api/health")
-async def health_check():
+def health_check():
     """Health check endpoint"""
-    return {
-        "status": "OK",
-        "timestamp": "2024-01-01T00:00:00Z",
-        "services": {
-            "orchestrator": orchestrator is not None,
-            "performance_orchestrator": performance_orchestrator is not None,
-            "livekit": livekit_service.is_configured() if livekit_service else False,
-            "voice_service": voice_service is not None
-        },
-        "framework": "Pydantic AI",
-        "version": "2.0.0"
-    }
+    return {"status": "ok"}
 
 # Question generation endpoint
 @app.post("/api/generate-question")

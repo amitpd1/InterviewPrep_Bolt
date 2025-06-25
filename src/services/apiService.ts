@@ -2,11 +2,9 @@ import axios from 'axios';
 import { InterviewConfig, AnalyticsData, InterviewResponse } from '../types';
 
 // Check if we should use Python backend
-const USE_PYTHON_BACKEND = import.meta.env.VITE_USE_PYTHON_BACKEND === 'true';
-const PYTHON_API_BASE = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:3001';
-const NODE_API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const PYTHON_API_BASE = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:3001/api';
 
-const API_BASE_URL = USE_PYTHON_BACKEND ? PYTHON_API_BASE : NODE_API_BASE;
+const API_BASE_URL = PYTHON_API_BASE 
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -40,31 +38,35 @@ export interface AnalyticsRequest {
   config: InterviewConfig;
 }
 
+// Export the function so it can be imported elsewhere
+export function toPythonInterviewConfig(config: InterviewConfig) {
+  // Only include allowed properties for Gemini backend
+  // IMPORTANT: All keys must be in snake_case to match Python backend expectations
+
+  // Validate required fields
+  if (!config.role) throw new Error('InterviewConfig: role is required');
+  if (!config.experienceLevel) throw new Error('InterviewConfig: experienceLevel is required');
+  if (!config.companyName) throw new Error('InterviewConfig: companyName is required');
+
+  return {
+    role: config.role,
+    experience_level: config.experienceLevel,
+    company_name: config.companyName,
+    // Add other allowed properties here in snake_case if needed, e.g.:
+    // language: config.language,
+    // interview_type: config.interviewType,
+    // etc.
+  };
+}
+
 export class APIService {
   static async generateQuestion(request: QuestionGenerationRequest): Promise<string> {
     try {
-      console.log(`Using ${USE_PYTHON_BACKEND ? 'Python' : 'Node.js'} backend for question generation`);
-      
-      // Convert camelCase to snake_case for Python backend
-      const pythonRequest = USE_PYTHON_BACKEND ? {
-        config: {
-          ...request.config,
-          experience_level: request.config.experienceLevel,
-          company_name: request.config.companyName
-        },
-        previous_questions: request.previousQuestions,
-        previous_responses: request.previousResponses?.map(r => ({
-          question_id: r.questionId,
-          question: r.question,
-          response: r.response,
-          timestamp: r.timestamp,
-          duration: r.duration
-        })),
-        question_number: request.questionNumber
-      } : request;
-      
-      const endpoint = USE_PYTHON_BACKEND ? '/api/generate-question' : '/generate-question';
-      const response = await apiClient.post(endpoint, pythonRequest);
+      const pythonRequest = {
+        ...request,
+        config: toPythonInterviewConfig(request.config),
+      };
+      const response = await apiClient.post('/generate-question', pythonRequest);
       return response.data.question;
     } catch (error) {
       console.error('Error generating question:', error);
@@ -74,18 +76,11 @@ export class APIService {
 
   static async generateFollowUp(request: FollowUpRequest): Promise<string> {
     try {
-      const pythonRequest = USE_PYTHON_BACKEND ? {
-        question: request.question,
-        response: request.response,
-        config: {
-          ...request.config,
-          experience_level: request.config.experienceLevel,
-          company_name: request.config.companyName
-        }
-      } : request;
-      
-      const endpoint = USE_PYTHON_BACKEND ? '/api/generate-followup' : '/generate-followup';
-      const response = await apiClient.post(endpoint, pythonRequest);
+      const pythonRequest = {
+        ...request,
+        config: toPythonInterviewConfig(request.config),
+      };
+      const response = await apiClient.post('/generate-followup', pythonRequest);
       return response.data.followUp;
     } catch (error) {
       console.error('Error generating follow-up:', error);
@@ -95,18 +90,11 @@ export class APIService {
 
   static async analyzeResponse(request: ResponseAnalysisRequest): Promise<any> {
     try {
-      const pythonRequest = USE_PYTHON_BACKEND ? {
-        question: request.question,
-        response: request.response,
-        config: {
-          ...request.config,
-          experience_level: request.config.experienceLevel,
-          company_name: request.config.companyName
-        }
-      } : request;
-      
-      const endpoint = USE_PYTHON_BACKEND ? '/api/analyze-response' : '/analyze-response';
-      const response = await apiClient.post(endpoint, pythonRequest);
+      const pythonRequest = {
+        ...request,
+        config: toPythonInterviewConfig(request.config),
+      };
+      const response = await apiClient.post('/analyze-response', pythonRequest);
       return response.data.analysis;
     } catch (error) {
       console.error('Error analyzing response:', error);
@@ -116,25 +104,15 @@ export class APIService {
 
   static async generateAnalytics(request: AnalyticsRequest): Promise<AnalyticsData> {
     try {
-      console.log(`Using ${USE_PYTHON_BACKEND ? 'Python Pydantic AI' : 'Node.js'} backend for analytics generation`);
-      
-      const pythonRequest = USE_PYTHON_BACKEND ? {
+      const pythonRequest = {
+        ...request,
+        config: toPythonInterviewConfig(request.config),
         responses: request.responses.map(r => ({
+          ...r,
           question_id: r.questionId,
-          question: r.question,
-          response: r.response,
-          timestamp: r.timestamp,
-          duration: r.duration
         })),
-        config: {
-          ...request.config,
-          experience_level: request.config.experienceLevel,
-          company_name: request.config.companyName
-        }
-      } : request;
-      
-      const endpoint = USE_PYTHON_BACKEND ? '/api/generate-analytics' : '/generate-analytics';
-      const response = await apiClient.post(endpoint, pythonRequest);
+      };
+      const response = await apiClient.post('/generate-analytics', pythonRequest);
       return response.data.analytics;
     } catch (error) {
       console.error('Error generating analytics:', error);
@@ -144,11 +122,28 @@ export class APIService {
 
   static async checkHealth(): Promise<boolean> {
     try {
-      const endpoint = '/api/health';
+      const endpoint = '/health';
       const response = await apiClient.get(endpoint);
       return response.data.status === 'OK';
     } catch (error) {
       return false;
+    }
+  }
+
+  static async startVoiceInterview(data: { config: InterviewConfig; [key: string]: any }): Promise<any> {
+    // Only include allowed fields and transform config to snake_case
+    const { config, ...rest } = data;
+    const payload = {
+      ...rest,
+      config: toPythonInterviewConfig(config),
+    };
+    // Debug: log the payload to verify keys
+    console.log('Payload for /voice-interview/start:', JSON.stringify(payload));
+    try {
+      return await apiClient.post('/voice-interview/start', payload);
+    } catch (error) {
+      console.error('POST /voice-interview/start failed:', error);
+      throw error;
     }
   }
 

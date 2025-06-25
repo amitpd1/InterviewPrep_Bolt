@@ -1,4 +1,4 @@
-import { APIService } from './apiService';
+import { APIService, toPythonInterviewConfig } from './apiService';
 import { InterviewConfig } from '../types';
 
 export interface VoiceInterviewSession {
@@ -57,7 +57,7 @@ export class VoiceInterviewService {
   ): Promise<VoiceInterviewSession> {
     try {
       const response = await APIService.post(`${this.API_BASE}/start`, {
-        config,
+        config: toPythonInterviewConfig(config),
         participantName,
         enableAIAgent,
         agentProvider
