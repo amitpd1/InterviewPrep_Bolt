@@ -26,22 +26,29 @@ class VoiceInterviewService:
         """Start a new voice interview session"""
         try:
             logger.info(f"[VoiceInterviewService] Starting voice interview for {participant_name}")
-            
+            print(f"[VoiceInterviewService] participant_name: {participant_name}")  # <-- Add this line
+
             # Validate InterviewConfig
             config_data = config.model_dump()
             logger.debug(f"[VoiceInterviewService] InterviewConfig data: {config_data}")
-            required_fields = ["experience_level", "position", "language"]  # adjust as needed
+            required_fields = ["experience_level"]  # adjust as needed , "position", "language"
             missing_fields = [f for f in required_fields if f not in config_data or config_data[f] is None]
             if missing_fields:
                 logger.error(f"[VoiceInterviewService] Missing required config fields: {missing_fields}")
                 raise ValueError(f"Missing required config fields: {missing_fields}")
             
+            # Log identity and room before room creation
+            logger.debug(f"[VoiceInterviewService] About to create LiveKit room for participant: {participant_name}")
+            logger.debug(f"[VoiceInterviewService] LiveKit config_data: {config_data}")
+
             # Create LiveKit room
             room_data = await self.livekit.create_interview_room(
                 config_data,
                 participant_name
             )
-            
+            logger.debug(f"[VoiceInterviewService] LiveKit room_data: {room_data}")
+            logger.debug(f"[VoiceInterviewService] participant_token: {room_data.get('participant_token')}, interviewer_token: {room_data.get('interviewer_token')}, room_name: {room_data.get('room_name')}")
+
             # Initialize interview session
             session_id = room_data["room_name"]
             interview_session = {

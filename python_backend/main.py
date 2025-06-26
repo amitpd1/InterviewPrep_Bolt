@@ -5,8 +5,9 @@ import os
 import asyncio
 from contextlib import asynccontextmanager
 from typing import List, Optional, Dict, Any
+import re
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -179,7 +180,16 @@ async def start_voice_interview(request: VoiceInterviewStartRequest):
             raise HTTPException(status_code=503, detail="Voice service not initialized")
         
         logger.info(f"🎙️ Starting voice interview for: {request.participant_name}")
-        
+        logger.debug(f"VoiceInterviewStartRequest: {request.dict()}")  # Add this line for debugging
+
+        # Validate required fields for identity and room
+        if not hasattr(request, "participant_name") or not request.participant_name:
+            logger.error("Missing participant_name in request")
+            raise HTTPException(status_code=400, detail="participant_name is required")
+        if not hasattr(request, "config") or not request.config:
+            logger.error("Missing config in request")
+            raise HTTPException(status_code=400, detail="config is required")
+
         session = await voice_service.start_voice_interview(
             config=request.config,
             participant_name=request.participant_name,
@@ -232,6 +242,35 @@ async def get_system_info():
             "voice_provider": os.getenv("VOICE_AGENT_PROVIDER", "google")
         }
     }
+
+# Middleware to convert camelCase to snake_case
+def camel_to_snake(name: str) -> str:
+    """Convert camelCase or PascalCase to snake_case."""
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+@app.middleware("request")
+async def camelcase_to_snakecase_middleware(request: Request, call_next):
+    if request.headers.get("content-type", "").startswith("application/json"):
+        body = await request.body()
+        if body:
+            import json
+            try:
+                data = json.loads(body)
+                def convert_keys(obj):
+                    if isinstance(obj, dict):
+                        return {camel_to_snake(k): convert_keys(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [convert_keys(i) for i in obj]
+                    else:
+                        return obj
+                snake_data = convert_keys(data)
+                # Replace the request._body attribute (FastAPI/Starlette internal)
+                request._body = json.dumps(snake_data).encode("utf-8")
+            except Exception:
+                pass
+    response = await call_next(request)
+    return response
 
 if __name__ == "__main__":
     import uvicorn

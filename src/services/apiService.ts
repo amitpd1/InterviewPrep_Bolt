@@ -55,12 +55,12 @@ export function toPythonInterviewConfig(config: InterviewConfig) {
 
   return {
     topic: config.topic,
-    position: config.topic, // always send position
+    // position: config.position || config.topic, // use config.position if available, else fallback to topic
     style: config.style,
     experience_level: config.experienceLevel,
     company_name: config.companyName,
     duration: config.duration,
-    language: 'english', // always send language
+    // language: config.language || 'english', // use config.language if available, else fallback to 'english'
     // Add other allowed properties here in snake_case if needed
   };
 }
@@ -141,20 +141,64 @@ export class APIService {
 
   static async startVoiceInterview(data: { config: InterviewConfig; [key: string]: any }): Promise<any> {
     // Only include allowed fields and transform config to snake_case
-    const { config, ...rest } = data;
+    const {
+      config,
+      identity,
+      room,
+      agent_provider,
+      enable_ai_agent,
+      participant_name,
+      // participantName, // remove camelCase fallback
+      ...rest
+    } = data;
     const pyConfig = toPythonInterviewConfig(config);
 
-    // Some LiveKit backends expect position/language at the root level, not just inside config
+    // Use only snake_case participant_name
+    // Debug: log incoming data for identity, room, and participant_name
+    console.log('startVoiceInterview called with:', { identity, room, participant_name });
+
+    // Validate participant_name, identity, and room for access token generation
+    if (!participant_name) {
+      console.error('Missing participant_name:', participant_name);
+      throw new Error('participant_name must be provided to start a voice interview.');
+    }
+    if (!identity || !room) {
+      console.error('Missing identity or room:', { identity, room });
+      throw new Error('Both identity and room must be provided to start a voice interview.');
+    }
+
+    // Always ensure identity, room, and participant_name are present at the root level
     const payload = {
       ...rest,
+      agent_provider,
       config: pyConfig,
-      position: pyConfig.position,
-      language: pyConfig.language,
+      enable_ai_agent,
+      participant_name,
+      identity,
+      room,
     };
     // Debug: log the payload to verify keys
     console.log('Payload for /voice-interview/start:', JSON.stringify(payload));
+    console.log('Access Token Generation - identity:', identity, 'room:', room);
     try {
-      return await apiClient.post('/voice-interview/start', payload);
+      const response = await apiClient.post('/voice-interview/start', payload);
+      // Debug: log the full response for troubleshooting
+      console.log('Backend response for /voice-interview/start:', response.data);
+
+      // Check for participant_token in the response and handle errors accordingly
+      // Also check for camelCase fallback (participantToken) for robustness
+      if (
+        !response.data.participant_token &&
+        !response.data.participantToken
+      ) {
+        throw new Error('No participant token received from backend');
+      }
+
+      // Always return the backend response, but normalize to snake_case for frontend use
+      return {
+        ...response.data,
+        participant_token: response.data.participant_token || response.data.participantToken
+      };
     } catch (error) {
       console.error('POST /voice-interview/start failed:', error);
       throw error;

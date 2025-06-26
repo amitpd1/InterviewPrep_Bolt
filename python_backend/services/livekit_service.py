@@ -46,21 +46,28 @@ class LiveKitService:
         
         try:
             token = api.AccessToken(self.api_key, self.api_secret)
+            # Set the participant's identity (required)
             token.with_identity(participant_name)
+            # Optionally set a display name
             token.with_name(participant_name)
             
             if metadata:
                 token.with_metadata(str(metadata))
             
+            # Set room and permissions via VideoGrants
             token.with_grants(api.VideoGrants(
-                room_join=True,
-                room=room_name,
+                room_join=True,      # Allow joining the room
+                room=room_name,      # Specify the room name (required for agent dispatch)
                 can_publish=True,
                 can_subscribe=True,
                 can_publish_data=True,
                 can_update_own_metadata=True
             ))
-            
+
+            # Log for verification
+            logger.debug(f"[LiveKitService] AccessToken identity set to: {participant_name}")
+            logger.debug(f"[LiveKitService] AccessToken grants: room={room_name}, room_join=True")
+
             jwt_token = token.to_jwt()
             logger.info(f"[LiveKitService] Token generated successfully, length: {len(jwt_token)}")
             

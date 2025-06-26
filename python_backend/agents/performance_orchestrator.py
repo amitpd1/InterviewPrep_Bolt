@@ -14,7 +14,7 @@ class PerformanceAnalysisOrchestrator:
     Coordinates the multi-agent workflow for comprehensive interview performance analysis
     """
     
-    def __init__(self, model_name: str = "gemini-1.5-flash"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         self.model_name = model_name
         
         # Initialize analysis agents

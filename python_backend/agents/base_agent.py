@@ -13,7 +13,7 @@ T = TypeVar('T', bound=BaseModel)
 class BaseAgent(ABC, Generic[T]):
     """Base agent class for interview system using Pydantic AI"""
     
-    def __init__(self, name: str, model_name: str = "gemini-1.5-flash"):
+    def __init__(self, name: str, model_name: str = "gemini-2.5-flash"):
         self.name = name
         self.model_name = model_name
         self.memory: Dict[str, Any] = {}
