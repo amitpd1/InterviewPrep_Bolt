@@ -44,26 +44,35 @@ export function toPythonInterviewConfig(config: InterviewConfig) {
   // IMPORTANT: All keys must be in snake_case to match Python backend expectations
 
   // Validate required fields
-  if (!config.role) throw new Error('InterviewConfig: role is required');
+  if (!config.topic) throw new Error('InterviewConfig: topic is required');
+  if (!config.style) throw new Error('InterviewConfig: style is required');
   if (!config.experienceLevel) throw new Error('InterviewConfig: experienceLevel is required');
-  if (!config.companyName) throw new Error('InterviewConfig: companyName is required');
+  if (!config.duration) throw new Error('InterviewConfig: duration is required');
+  // Always send both position and language for backend compatibility
+
+  // LiveKit Voice agents may require the fields to be at the root level, not inside config
+  // So, return both a config object and also merge position/language at the root if needed
 
   return {
-    role: config.role,
+    topic: config.topic,
+    position: config.topic, // always send position
+    style: config.style,
     experience_level: config.experienceLevel,
     company_name: config.companyName,
-    // Add other allowed properties here in snake_case if needed, e.g.:
-    // language: config.language,
-    // interview_type: config.interviewType,
-    // etc.
+    duration: config.duration,
+    language: 'english', // always send language
+    // Add other allowed properties here in snake_case if needed
   };
 }
 
 export class APIService {
   static async generateQuestion(request: QuestionGenerationRequest): Promise<string> {
     try {
+      // Ensure previousQuestions and previousResponses are always arrays
       const pythonRequest = {
         ...request,
+        previousQuestions: request.previousQuestions ?? [],
+        previousResponses: request.previousResponses ?? [],
         config: toPythonInterviewConfig(request.config),
       };
       const response = await apiClient.post('/generate-question', pythonRequest);
@@ -133,9 +142,14 @@ export class APIService {
   static async startVoiceInterview(data: { config: InterviewConfig; [key: string]: any }): Promise<any> {
     // Only include allowed fields and transform config to snake_case
     const { config, ...rest } = data;
+    const pyConfig = toPythonInterviewConfig(config);
+
+    // Some LiveKit backends expect position/language at the root level, not just inside config
     const payload = {
       ...rest,
-      config: toPythonInterviewConfig(config),
+      config: pyConfig,
+      position: pyConfig.position,
+      language: pyConfig.language,
     };
     // Debug: log the payload to verify keys
     console.log('Payload for /voice-interview/start:', JSON.stringify(payload));

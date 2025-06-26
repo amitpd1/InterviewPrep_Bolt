@@ -821,7 +821,12 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
                   <AlertCircle className="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
                   <div className="text-red-800 text-sm">
                     <p className="font-medium mb-1">Connection Error</p>
-                    <p className="mb-2">{livekitError.message}</p>
+                    <p className="mb-2">
+                      {/* Fix: livekitError may be a string or an object */}
+                      {typeof livekitError === 'string'
+                        ? livekitError
+                        : (livekitError as any)?.message || String(livekitError)}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1139,5 +1144,4 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
       </div>
     </div>
   );
-};
 };
