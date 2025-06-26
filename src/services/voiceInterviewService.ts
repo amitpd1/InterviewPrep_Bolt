@@ -56,13 +56,15 @@ export class VoiceInterviewService {
     agentProvider: 'openai' | 'google' = 'google'
   ): Promise<VoiceInterviewSession> {
     try {
+      // No case conversion here; APIService handles it
       const response = await APIService.post(`${this.API_BASE}/start`, {
-        config: toPythonInterviewConfig(config),
+        config,
         participantName,
         enableAIAgent,
         agentProvider
       });
-      return response.data;
+      // Just return the response as-is (APIService returns camelCase)
+      return response;
     } catch (error) {
       console.error('Error starting voice interview:', error);
       throw new Error('Failed to start voice interview. Please try again.');
@@ -180,12 +182,17 @@ export class VoiceInterviewService {
   /**
    * Check if LiveKit is configured
    */
-  static async checkLiveKitConfig(): Promise<{ configured: boolean; wsUrl?: string; aiAgent?: any }> {
+  static async checkLiveKitConfig(): Promise<{ configured: boolean; wsUrl?: string; aiAgent?: any; timestamp?: string }> {
     try {
       console.log('LiveKit config Origin URL:', import.meta.env.VITE_API_URL);
       const response = await APIService.get(`${import.meta.env.VITE_API_URL}/livekit/config`);
-
-      return response.data;
+      // The APIService.get() returns the data directly, not { data: ... }
+      if (!response) {
+        console.warn('LiveKit config: response is undefined');
+        return { configured: false };
+      }
+      console.log('LiveKit Response data:', response.configured);
+      return response;
     } catch (error) {
       console.error('Error checking LiveKit config:', error);
       return { configured: false };

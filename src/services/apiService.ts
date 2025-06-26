@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { InterviewConfig, AnalyticsData, InterviewResponse } from '../types';
+import { convertKeysToSnake, convertKeysToCamel } from '../utils/caseConversion';
 
 // Check if we should use Python backend
 const PYTHON_API_BASE = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:3001/api';
@@ -68,15 +69,14 @@ export function toPythonInterviewConfig(config: InterviewConfig) {
 export class APIService {
   static async generateQuestion(request: QuestionGenerationRequest): Promise<string> {
     try {
-      // Ensure previousQuestions and previousResponses are always arrays
-      const pythonRequest = {
+      const pythonRequest = convertKeysToSnake({
         ...request,
         previousQuestions: request.previousQuestions ?? [],
         previousResponses: request.previousResponses ?? [],
-        config: toPythonInterviewConfig(request.config),
-      };
+      });
       const response = await apiClient.post('/generate-question', pythonRequest);
-      return response.data.question;
+      const data = convertKeysToCamel(response.data);
+      return data.question;
     } catch (error) {
       console.error('Error generating question:', error);
       throw new Error('Failed to generate question. Please try again.');
@@ -85,12 +85,10 @@ export class APIService {
 
   static async generateFollowUp(request: FollowUpRequest): Promise<string> {
     try {
-      const pythonRequest = {
-        ...request,
-        config: toPythonInterviewConfig(request.config),
-      };
+      const pythonRequest = convertKeysToSnake(request);
       const response = await apiClient.post('/generate-followup', pythonRequest);
-      return response.data.followUp;
+      const data = convertKeysToCamel(response.data);
+      return data.followUp;
     } catch (error) {
       console.error('Error generating follow-up:', error);
       throw new Error('Failed to generate follow-up question.');
@@ -99,12 +97,10 @@ export class APIService {
 
   static async analyzeResponse(request: ResponseAnalysisRequest): Promise<any> {
     try {
-      const pythonRequest = {
-        ...request,
-        config: toPythonInterviewConfig(request.config),
-      };
+      const pythonRequest = convertKeysToSnake(request);
       const response = await apiClient.post('/analyze-response', pythonRequest);
-      return response.data.analysis;
+      const data = convertKeysToCamel(response.data);
+      return data.analysis;
     } catch (error) {
       console.error('Error analyzing response:', error);
       throw new Error('Failed to analyze response.');
@@ -113,16 +109,16 @@ export class APIService {
 
   static async generateAnalytics(request: AnalyticsRequest): Promise<AnalyticsData> {
     try {
-      const pythonRequest = {
+      const pythonRequest = convertKeysToSnake({
         ...request,
-        config: toPythonInterviewConfig(request.config),
         responses: request.responses.map(r => ({
           ...r,
-          question_id: r.questionId,
+          questionId: r.questionId,
         })),
-      };
+      });
       const response = await apiClient.post('/generate-analytics', pythonRequest);
-      return response.data.analytics;
+      const data = convertKeysToCamel(response.data);
+      return data.analytics;
     } catch (error) {
       console.error('Error generating analytics:', error);
       throw new Error('Failed to generate analytics.');
@@ -133,7 +129,8 @@ export class APIService {
     try {
       const endpoint = '/health';
       const response = await apiClient.get(endpoint);
-      return response.data.status === 'OK';
+      const data = convertKeysToCamel(response.data);
+      return data.status === 'OK';
     } catch (error) {
       return false;
     }
@@ -141,64 +138,16 @@ export class APIService {
 
   static async startVoiceInterview(data: { config: InterviewConfig; [key: string]: any }): Promise<any> {
     // Only include allowed fields and transform config to snake_case
-    const {
-      config,
-      identity,
-      room,
-      agent_provider,
-      enable_ai_agent,
-      participant_name,
-      // participantName, // remove camelCase fallback
-      ...rest
-    } = data;
-    const pyConfig = toPythonInterviewConfig(config);
-
-    // Use only snake_case participant_name
-    // Debug: log incoming data for identity, room, and participant_name
-    console.log('startVoiceInterview called with:', { identity, room, participant_name });
-
-    // Validate participant_name, identity, and room for access token generation
-    if (!participant_name) {
-      console.error('Missing participant_name:', participant_name);
-      throw new Error('participant_name must be provided to start a voice interview.');
-    }
-    if (!identity || !room) {
-      console.error('Missing identity or room:', { identity, room });
-      throw new Error('Both identity and room must be provided to start a voice interview.');
-    }
-
-    // Always ensure identity, room, and participant_name are present at the root level
-    const payload = {
-      ...rest,
-      agent_provider,
-      config: pyConfig,
-      enable_ai_agent,
-      participant_name,
-      identity,
-      room,
-    };
-    // Debug: log the payload to verify keys
-    console.log('Payload for /voice-interview/start:', JSON.stringify(payload));
-    console.log('Access Token Generation - identity:', identity, 'room:', room);
+    const snakePayload = convertKeysToSnake(data);
+    // ...existing code...
     try {
-      const response = await apiClient.post('/voice-interview/start', payload);
-      // Debug: log the full response for troubleshooting
-      console.log('Backend response for /voice-interview/start:', response.data);
-
-      // Check for participant_token in the response and handle errors accordingly
-      // Also check for camelCase fallback (participantToken) for robustness
-      if (
-        !response.data.participant_token &&
-        !response.data.participantToken
-      ) {
+      const response = await apiClient.post('/voice-interview/start', snakePayload);
+      const dataCamel = convertKeysToCamel(response.data);
+      // ...existing code...
+      if (!dataCamel.participantToken) {
         throw new Error('No participant token received from backend');
       }
-
-      // Always return the backend response, but normalize to snake_case for frontend use
-      return {
-        ...response.data,
-        participant_token: response.data.participant_token || response.data.participantToken
-      };
+      return dataCamel;
     } catch (error) {
       console.error('POST /voice-interview/start failed:', error);
       throw error;
@@ -208,7 +157,8 @@ export class APIService {
   // Generic HTTP methods
   static async get(url: string): Promise<any> {
     try {
-      return await apiClient.get(url);
+      const response = await apiClient.get(url);
+      return convertKeysToCamel(response.data);
     } catch (error) {
       console.error(`GET ${url} failed:`, error);
       throw error;
@@ -217,7 +167,8 @@ export class APIService {
 
   static async post(url: string, data?: any): Promise<any> {
     try {
-      return await apiClient.post(url, data);
+      const response = await apiClient.post(url, convertKeysToSnake(data));
+      return convertKeysToCamel(response.data);
     } catch (error) {
       console.error(`POST ${url} failed:`, error);
       throw error;
@@ -226,7 +177,8 @@ export class APIService {
 
   static async put(url: string, data?: any): Promise<any> {
     try {
-      return await apiClient.put(url, data);
+      const response = await apiClient.put(url, convertKeysToSnake(data));
+      return convertKeysToCamel(response.data);
     } catch (error) {
       console.error(`PUT ${url} failed:`, error);
       throw error;
@@ -235,7 +187,8 @@ export class APIService {
 
   static async delete(url: string): Promise<any> {
     try {
-      return await apiClient.delete(url);
+      const response = await apiClient.delete(url);
+      return convertKeysToCamel(response.data);
     } catch (error) {
       console.error(`DELETE ${url} failed:`, error);
       throw error;

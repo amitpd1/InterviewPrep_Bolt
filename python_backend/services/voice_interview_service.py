@@ -83,6 +83,22 @@ class VoiceInterviewService:
             }
             
             logger.info(f"[VoiceInterviewService] Voice interview started successfully: {session_id}")
+
+            # --- Debug: Check LiveKit audio agent setup ---
+            if not room_data.get("participant_token") or not room_data.get("ws_url"):
+                logger.error("[VoiceInterviewService] LiveKit room missing participant_token or ws_url. Audio will not work.")
+            else:
+                logger.info(f"[VoiceInterviewService] LiveKit participant_token and ws_url present for audio.")
+
+            # --- Debug: Log interviewer token and agent status ---
+            if not room_data.get("interviewer_token"):
+                logger.warning("[VoiceInterviewService] interviewer_token missing. AI agent may not be connected.")
+            else:
+                logger.info(f"[VoiceInterviewService] interviewer_token present: {room_data.get('interviewer_token')}")
+
+            # --- Debug: Log agent provider and AI agent enabled status ---
+            logger.info(f"[VoiceInterviewService] AI Agent enabled: {enable_ai_agent}, Provider: {agent_provider}")
+
             return response_data
             
         except Exception as error:

@@ -473,6 +473,20 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Local utility to convert snake_case keys to camelCase (shallow, for session object)
+  function camelCaseSession(obj: any): any {
+    if (!obj || typeof obj !== 'object') return obj;
+    const toCamel = (s: string) =>
+      s.replace(/([-_][a-z])/g, group =>
+        group.toUpperCase().replace('-', '').replace('_', '')
+      );
+    const result: any = {};
+    for (const key in obj) {
+      result[toCamel(key)] = obj[key];
+    }
+    return result;
+  }
+
   const startVoiceInterview = async () => {
     try {
       setIsThinking(true);
@@ -482,34 +496,33 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
       console.log('[VoiceInterview] ========== STARTING VOICE INTERVIEW ==========');
       console.log('[VoiceInterview] Selected provider:', selectedProvider);
       console.log('[VoiceInterview] participant name:', participantName);
-      // Do NOT transform config here. Pass the original config (camelCase) to the service.
-      // The service layer should handle the snake_case transformation before sending to the backend.
 
-      // Fix: Use the correct argument structure for VoiceInterviewService.startVoiceInterview
-      // If your service expects positional arguments, call as below:
+      
       const session = await VoiceInterviewService.startVoiceInterview(
-        config,                // InterviewConfig
-        participantName,       // string
-        true,                  // enableAIAgent
-        selectedProvider       // agentProvider
+        config,
+        participantName,
+        true,
+        selectedProvider
       );
 
-      console.log('[VoiceInterview] Session received from backend:', session);
+      if (!session) {
+        throw new Error('No session received from backend');
+      }
 
-      // Convert backend snake_case keys to camelCase for frontend use
-      const sessionCamel = convertKeysToCamel(session);
+      // Defensive: log session object and check for participantToken
+      console.log('[VoiceInterview] Session object:', session);
 
-      const participantToken = sessionCamel.participantToken;
+      const participantToken = session.participantToken;
       if (!participantToken) {
         throw new Error('No participant token received from backend');
       }
 
       // Set the session
-      setVoiceSession(sessionCamel);
+      setVoiceSession(session);
       setAiAgentStatus({
-        enabled: sessionCamel.aiAgentEnabled,
-        provider: sessionCamel.agentProvider,
-        conversational: sessionCamel.conversationalMode
+        enabled: session.aiAgentEnabled,
+        provider: session.agentProvider,
+        conversational: session.conversationalMode
       });
 
       // Clear conversation history - it will be populated by data messages
@@ -1151,22 +1164,3 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
     </div>
   );
 };
-
-// Utility function to convert snake_case keys to camelCase
-function convertKeysToCamel(obj: any): any {
-  const toCamel = (s: string) =>
-    s.replace(/([-_][a-z])/g, group =>
-      group.toUpperCase()
-        .replace('-', '')
-        .replace('_', '')
-    );
-  if (Array.isArray(obj)) {
-    return obj.map(v => convertKeysToCamel(v));
-  } else if (obj !== null && obj.constructor === Object) {
-    return Object.keys(obj).reduce((result, key) => {
-      result[toCamel(key)] = convertKeysToCamel(obj[key]);
-      return result;
-    }, {} as any);
-  }
-  return obj;
-}
