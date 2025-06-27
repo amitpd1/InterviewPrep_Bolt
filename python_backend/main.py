@@ -6,6 +6,8 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import List, Optional, Dict, Any
 import re
+import subprocess
+import sys  # Add this import at the top with other imports
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -180,7 +182,7 @@ async def start_voice_interview(request: VoiceInterviewStartRequest):
             raise HTTPException(status_code=503, detail="Voice service not initialized")
         
         logger.info(f"🎙️ Starting voice interview for: {request.participant_name}")
-        logger.debug(f"VoiceInterviewStartRequest: {request.dict()}")  # Add this line for debugging
+        logger.debug(f"VoiceInterviewStartRequest: {request.model_dump()}")
 
         # Validate required fields for identity and room
         if not hasattr(request, "participant_name") or not request.participant_name:
@@ -196,7 +198,28 @@ async def start_voice_interview(request: VoiceInterviewStartRequest):
             enable_ai_agent=request.enable_ai_agent,
             agent_provider=request.agent_provider
         )
-        
+
+        # --- Start the LiveKit Voice Agent as a subprocess ---
+        # Pass room_name and interviewer_token to the agent script
+        room_name = session.get("room_name")
+        agent_token = session.get("interviewer_token") or session.get("participant_token")
+        agent_script = os.path.join(os.path.dirname(__file__), "livekit_voice_agent.py")
+        if room_name and agent_token:
+            logger.info(f"🚀 Launching LiveKit Voice Agent for room: {room_name}")
+            subprocess.Popen(
+                [sys.executable, agent_script, room_name, agent_token],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True
+            )
+        else:
+            logger.error("Could not launch LiveKit Voice Agent: room_name or agent_token missing in session response.")
+
+        # DEBUG: Print the session response to the console
+        print("=== Outgoing session response ===")
+        print(session)
+        print("=================================")
+
         return session
         
     except Exception as e:
