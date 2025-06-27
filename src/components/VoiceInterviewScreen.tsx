@@ -26,7 +26,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import { InterviewConfig } from '../types';
+import { InterviewConfig } from '../types/index';
 import { AIInterviewSimulator } from '../utils/aiSimulator';
 import { useLiveKit } from '../hooks/useLiveKit';
 import { VoiceInterviewService } from '../services/voiceInterviewService';
@@ -344,7 +344,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
     if (voiceSession && voiceSession.participantToken && !livekitReady) {
       console.log('[VoiceInterview] Session ready, preparing LiveKit connection');
       setLivekitReady(true);
-      
+
       setTimeout(async () => {
         try {
           console.log('[VoiceInterview] ========== ATTEMPTING LIVEKIT CONNECTION ==========');
@@ -372,7 +372,9 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
         }
       }, 200);
     }
-  }, [voiceSession, livekitReady, connectLiveKit, speechSupported, startListening, isListening]);
+    // Only run once when voiceSession and livekitReady change from false to true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceSession, livekitReady]);
 
   // Handle transcript changes
   useEffect(() => {
@@ -918,7 +920,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
 
               <div className="flex items-center space-x-3">
                 <div className="text-sm text-gray-600">
-                  Participant Count: {participantCount}
+                  Participants: {participantCount}
                 </div>
                 <Users className="w-5 h-5 text-gray-400" />
               </div>

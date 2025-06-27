@@ -200,20 +200,31 @@ async def start_voice_interview(request: VoiceInterviewStartRequest):
         )
 
         # --- Start the LiveKit Voice Agent as a subprocess ---
-        # Pass room_name and interviewer_token to the agent script
         room_name = session.get("room_name")
         agent_token = session.get("interviewer_token") or session.get("participant_token")
         agent_script = os.path.join(os.path.dirname(__file__), "livekit_voice_agent.py")
         if room_name and agent_token:
-            logger.info(f"🚀 Launching LiveKit Voice Agent for room: {room_name}")
+            # Extract user context from the interview config
+            interview_config = request.config
+            env = os.environ.copy()
+            env["LIVEKIT_ROOM_NAME"] = room_name
+            env["LIVEKIT_AGENT_TOKEN"] = agent_token
+            # Pass user context as environment variables
+            env["INTERVIEW_TECHNOLOGY"] = getattr(interview_config, "topic", "")
+            env["INTERVIEW_COMPANY"] = getattr(interview_config, "company_name", "")
+            env["INTERVIEW_EXPERIENCE"] = getattr(interview_config, "experience_level", "")
+
+            logger.info(f"LiveKit ENV for agent: LIVEKIT_WS_URL={env.get('LIVEKIT_WS_URL')}, LIVEKIT_ROOM_NAME={env.get('LIVEKIT_ROOM_NAME')}, INTERVIEW_TECHNOLOGY={env.get('INTERVIEW_TECHNOLOGY')}, INTERVIEW_COMPANY={env.get('INTERVIEW_COMPANY')}, INTERVIEW_EXPERIENCE={env.get('INTERVIEW_EXPERIENCE')}")
+
             subprocess.Popen(
-                [sys.executable, agent_script, room_name, agent_token],
+                [sys.executable, agent_script, "start"],
+                env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 close_fds=True
             )
         else:
-            logger.error("Could not launch LiveKit Voice Agent: room_name or agent_token missing in session response.")
+            logger.error(f"Could not launch LiveKit Voice Agent: room_name or agent_token missing in session response. room_name={room_name}, agent_token={'present' if agent_token else 'missing'}")
 
         # DEBUG: Print the session response to the console
         print("=== Outgoing session response ===")

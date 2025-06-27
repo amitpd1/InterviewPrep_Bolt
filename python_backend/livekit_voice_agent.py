@@ -6,86 +6,90 @@ See: https://docs.livekit.io/agents/start/voice-ai/
 import sys
 import os
 import asyncio
-from livekit.agents import VoiceAiAgent, VoiceAiAgentOptions, RoomOptions, AudioOptions
 
-async def main():
-    # Accept room_name and agent_token as command-line arguments
-    if len(sys.argv) < 3:
-        print("Usage: python livekit_voice_agent.py <room_name> <agent_token>")
-        sys.exit(1)
+from dotenv import load_dotenv
 
-    room_name = sys.argv[1]
-    agent_token = sys.argv[2]
+from livekit import agents
+from livekit.agents import AgentSession, Agent, RoomInputOptions,JobProcess, RoomOutputOptions, RunContext, WorkerOptions
+from livekit.plugins import (
+    openai,
+    cartesia,
+    gladia,
+    noise_cancellation,
+    silero,
+)
+from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
-    print(f"[Voice Agent] Connecting to room: {room_name}")
-    print(f"[Voice Agent] Using agent_token: {agent_token[:10]}... (truncated)")
+load_dotenv()
 
-    # --- Room and agent options ---
-    room_options = RoomOptions(
-        ws_url=os.getenv("LIVEKIT_WS_URL"),
-        api_key=os.getenv("LIVEKIT_API_KEY"),
-        api_secret=os.getenv("LIVEKIT_API_SECRET"),
-        room_name=room_name,
-        agent_identity=os.getenv("AGENT_NAME", "AI-Interviewer"),
-        token=agent_token,
+
+class Assistant(Agent):
+    def __init__(self, user_context: dict = None) -> None:
+        # You can pass user_context (e.g., interview config, user info) to the agent
+        self.user_context = user_context or {}
+        instructions = "You are a expert interviewer who helps users to prepare for a Job interview."
+        # Optionally, customize instructions based on user_context
+        if self.user_context:
+            tech = self.user_context.get("technology")
+            company = self.user_context.get("company")
+            experience = self.user_context.get("experience_level")
+            if tech or company or experience:
+                instructions += f"The user is preparing for {tech or ''} interview at {company or ''} with experience level {experience or ''}." \
+                "Based on this information ask questions related to the interview and get the answers. "
+        super().__init__(instructions=instructions)
+        
+    async def on_enter(self):
+        # You can use self.user_context here as needed
+        self.session.generate_reply()
+
+
+def prewarm(proc: JobProcess):
+    proc.userdata["vad"] = silero.VAD.load()
+
+
+async def entrypoint(ctx: agents.JobContext):
+    # Example: get custom info from environment variables (set by backend)
+    user_context = {
+        "technology": os.getenv("INTERVIEW_TECHNOLOGY"),
+        "company": os.getenv("INTERVIEW_COMPANY"),
+        "experience_level": os.getenv("INTERVIEW_EXPERIENCE"),
+        # Add more as needed
+    }
+    session = AgentSession(
+        stt=gladia.STT(),
+        llm=openai.LLM(model="gpt-4o-mini"),
+        tts=cartesia.TTS(model="sonic-2", voice="f786b574-daa5-4673-aa0c-cbe3e8534c02"),
+        vad=silero.VAD.load(),
+        turn_detection=MultilingualModel(),
     )
 
-    # --- Audio/Voice options ---
-    audio_options = AudioOptions(
-        tts_provider=os.getenv("LLM_PROVIDER", "openai"),
-        tts_api_key=os.getenv("OPENAI_API_KEY"),
-        voice_id=os.getenv("VOICE_ID", "en-US-Standard-E"),
+    await session.start(
+        room=ctx.room,
+        agent=Assistant(user_context=user_context),
+        room_input_options=RoomInputOptions(
+            # LiveKit Cloud enhanced noise cancellation
+            # - If self-hosting, omit this parameter
+            # - For telephony applications, use `BVCTelephony` for best results
+            noise_cancellation=noise_cancellation.BVC(), 
+        ),
     )
 
-    agent_options = VoiceAiAgentOptions(
-        room=room_options,
-        audio=audio_options,
+    await ctx.connect()
+
+    await session.generate_reply(
+        instructions="Greet the user and offer your assistance."
     )
-
-    agent = VoiceAiAgent(agent_options)
-
-    print("[Voice Agent] Connecting to LiveKit room...")
-    await agent.connect()
-    print("[Voice Agent] Connected. Waiting for conversation...")
-
-    # Print agent state for debugging
-    print(f"[Voice Agent] Agent identity: {room_options.agent_identity}")
-    print(f"[Voice Agent] Room name: {room_options.room_name}")
-    print(f"[Voice Agent] WS URL: {room_options.ws_url}")
-
-    await agent.wait_until_disconnected()
-    print("[Voice Agent] Disconnected from room. Agent terminating.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
-    
+    # Ensure the agent is started with the correct command, e.g.:
+    # python livekit_voice_agent.py start
+    #import sys
+    #if len(sys.argv) > 1 and sys.argv[1] == "start":
+    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
+    #else:
+    #    print("Usage: python livekit_voice_agent.py start")
+    #    sys.exit(1)
+    #     env={**os.environ, "LIVEKIT_ROOM_NAME": room_name, "LIVEKIT_AGENT_TOKEN": agent_token},
+    #     ...
+    # )
 
-    # --- Audio/Voice options ---
-    audio_options = AudioOptions(
-        tts_provider=LLM_PROVIDER,
-        tts_api_key=OPENAI_API_KEY,
-        voice_id=VOICE_ID,
-        # Add other TTS/ASR/LLM config as needed
-    )
-
-    # --- Agent options ---
-    agent_options = VoiceAiAgentOptions(
-        room=room_options,
-        audio=audio_options,
-        # You can add more options here (see docs)
-    )
-
-    # --- Create and run the agent ---
-    agent = VoiceAiAgent(agent_options)
-
-    print(f"[LiveKit Voice Agent] Connecting to room '{room_name}' as '{AGENT_NAME}'...")
-    await agent.connect()
-    print("[LiveKit Voice Agent] Connected. Waiting for conversation...")
-
-    # Keep the agent running until disconnected from the room
-    await agent.wait_until_disconnected()
-    print("[LiveKit Voice Agent] Disconnected from room. Agent terminating.")
-
-if __name__ == "__main__":
-    asyncio.run(main())
-    asyncio.run(main())
