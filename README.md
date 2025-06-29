@@ -50,7 +50,7 @@ A comprehensive AI-powered interview practice application that uses Large Langua
 - **Lucide React** for icons
 
 ### Backend
-- **Node.js** with Express
+- **Python FastAPI** with Pydantic AI
 - **LiveKit Server SDK** for room management
 - **Multiple LLM Providers**: OpenAI, Anthropic, Google Gemini
 - **Agentic AI Framework** for intelligent question generation
@@ -120,33 +120,89 @@ PORT=3001
 VITE_API_URL=http://localhost:3001/api
 ```
 
-### 4. Start the Application
+## 🚀 Deployment Options
 
-**Full Mode (with voice interviews):**
+### Option 1: Simple Script Deployment (Recommended)
+
+Use the deployment script for a single-command deployment:
+
 ```bash
-# Terminal 1: Start the backend server
-npm run server
+# Make the script executable
+chmod +x deploy.sh
 
-# Terminal 2: Start the Python AI agents
-npm run agent
-
-# Terminal 3: Start the frontend
-npm run dev
+# Run the deployment
+./deploy.sh
 ```
 
-**Text-only Mode:**
-```bash
-# Terminal 1: Start the backend server
-npm run server
+This script will:
+1. Install frontend dependencies
+2. Build the frontend for production
+3. Install Python dependencies
+4. Start the combined server
 
-# Terminal 2: Start the frontend
-npm run dev
+### Option 2: Manual Deployment
+
+```bash
+# Build frontend
+npm run build
+
+# Start the combined server
+npm run start-prod
 ```
 
-### 5. Access the Application
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:3001
+### Option 3: Docker Deployment
+
+```bash
+# Build and run with Docker
+chmod +x deploy-docker.sh
+./deploy-docker.sh
+```
+
+Or manually:
+```bash
+# Build the image
+docker build -t ai-interview-platform .
+
+# Run the container
+docker run -d -p 3001:3001 --env-file .env ai-interview-platform
+```
+
+### Option 4: Docker Compose
+
+```bash
+# Start with docker-compose
+docker-compose up -d
+```
+
+## 📚 Available Scripts
+
+### Development Scripts
+```bash
+npm run dev              # Start frontend development server
+npm run python-server    # Start Python backend only
+```
+
+### Production Scripts
+```bash
+npm run build           # Build frontend for production
+npm run start-prod      # Build frontend and start production server
+npm run start           # Alias for start-prod
+npm run deploy          # Production deployment with uvicorn
+```
+
+### Utility Scripts
+```bash
+npm run setup-python    # Install Python dependencies
+npm run lint            # Run ESLint
+npm run preview         # Preview built frontend
+```
+
+## 🌐 Access Your Application
+
+After deployment, your application will be available at:
+- **Main Application**: http://localhost:3001
 - **Health Check**: http://localhost:3001/api/health
+- **API Documentation**: http://localhost:3001/docs (FastAPI auto-generated)
 
 ## 🔧 Configuration
 
@@ -177,92 +233,43 @@ npm run dev
 1. Get API key from [Anthropic Console](https://console.anthropic.com/)
 2. Set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` in `.env`
 
-## 📚 API Documentation
+## 🚀 Production Deployment
 
-### Text-based Interview Endpoints
-```
-POST /api/generate-question          # Generate interview questions
-POST /api/generate-followup          # Generate follow-up questions
-POST /api/analyze-response           # Analyze text responses
-POST /api/generate-analytics         # Generate comprehensive analytics
-```
-
-### Voice Interview Endpoints
-```
-POST /api/voice-interview/start                    # Start voice interview session
-POST /api/voice-interview/:sessionId/response      # Process voice response
-POST /api/voice-interview/:sessionId/followup      # Generate voice follow-up
-POST /api/voice-interview/:sessionId/pause         # Pause voice session
-POST /api/voice-interview/:sessionId/resume        # Resume voice session
-POST /api/voice-interview/:sessionId/end           # End voice session
-GET  /api/voice-interview/:sessionId/status        # Get session status
-POST /api/voice-interview/:sessionId/reconnect     # Reconnect to session
+### Environment Variables for Production
+```env
+NODE_ENV=production
+PORT=3001
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_production_api_key
+LIVEKIT_WS_URL=wss://your-production-livekit-server.com
 ```
 
-### LiveKit Management
+### Deployment to Cloud Platforms
+
+#### Heroku
+```bash
+# Add buildpacks
+heroku buildpacks:add heroku/nodejs
+heroku buildpacks:add heroku/python
+
+# Deploy
+git push heroku main
 ```
-GET  /api/livekit/config            # Check LiveKit configuration
-POST /api/livekit/webhook           # Handle LiveKit webhooks
-GET  /api/voice-interview/sessions/active  # Get active sessions (admin)
+
+#### Railway
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Deploy
+railway deploy
 ```
 
-## 🏗️ Architecture
-
-### Frontend (React + TypeScript + LiveKit)
-- **Configuration Screen**: Interview setup and voice/text mode selection
-- **Voice Interview Screen**: Real-time voice communication with AI interviewer
-- **Text Interview Screen**: Traditional text-based interview (fallback)
-- **Analytics Screen**: Performance analysis with voice session insights
-- **LiveKit Integration**: Real-time audio streaming and communication
-- **Speech Recognition**: Browser-based speech-to-text with LiveKit audio
-
-### Backend (Node.js + Express + LiveKit Server SDK)
-- **LLM Service**: Unified interface for multiple LLM providers
-- **LiveKit Service**: Room management, token generation, webhook handling
-- **Voice Interview Service**: Session management, audio processing, real-time question flow
-- **Question Generation**: Context-aware question creation with voice timing
-- **Response Analysis**: AI-powered feedback with audio quality metrics
-- **Analytics Engine**: Comprehensive performance evaluation including voice metrics
-
-### AI Agents (Python + LiveKit Agents)
-- **Multi-Provider Support**: OpenAI and Google Cloud integration
-- **Real-time Conversation**: Natural voice interaction with AI interviewer
-- **Speech Processing**: Advanced STT and TTS capabilities
-- **Session Management**: Persistent interview sessions with recovery
-- **Audio Quality**: Echo cancellation, noise suppression, auto-gain control
-
-## 🚀 Deployment
-
-### Production Deployment
-1. **Backend Deployment**:
-   ```bash
-   npm run build
-   # Deploy to your preferred platform (AWS, GCP, Azure, etc.)
-   ```
-
-2. **LiveKit Configuration**:
-   - Use LiveKit Cloud for production
-   - Configure proper CORS and security settings
-   - Set up webhook endpoints for monitoring
-
-3. **Environment Variables**:
-   ```env
-   NODE_ENV=production
-   LIVEKIT_WS_URL=wss://your-production-livekit-server.com
-   # Add production API keys
-   ```
-
-### Docker Deployment
-```dockerfile
-# Dockerfile example for backend
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 3001
-CMD ["npm", "run", "server"]
-```
+#### DigitalOcean App Platform
+1. Connect your repository
+2. Set build command: `npm run build`
+3. Set run command: `python python_backend/main.py`
+4. Add environment variables
 
 ## 🔒 Security
 
@@ -299,3 +306,4 @@ For issues related to:
 - [Google Cloud](https://cloud.google.com/) for Speech and Gemini AI
 - [Anthropic](https://anthropic.com/) for Claude models
 - [React](https://reactjs.org/) and [Vite](https://vitejs.dev/) for the frontend framework
+- [FastAPI](https://fastapi.tiangolo.com/) for the Python backend framework

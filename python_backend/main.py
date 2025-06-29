@@ -12,6 +12,7 @@ import sys  # Add this import at the top with other imports
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from loguru import logger
@@ -85,6 +86,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files for production deployment
+# This serves the built frontend files
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dist")
+if os.path.exists(static_dir):
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+    logger.info(f"✅ Serving static files from: {static_dir}")
+else:
+    logger.warning(f"⚠️ Static directory not found: {static_dir}")
+    logger.warning("⚠️ Run 'npm run build' to create the dist directory")
 
 # Health check endpoint
 @app.get("/api/health")
