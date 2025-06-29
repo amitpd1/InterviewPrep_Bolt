@@ -13,15 +13,11 @@ google-generativeai==0.8.3
 
 # LiveKit integration
 livekit
-livekit-agents
+livekit-agents[deepgram,openai,cartesia,silero,turn-detector,elevenlabs,google,gladia]~=1.0
+livekit-plugins-noise-cancellation~=0.2
 
 # Additional utilities
 python-multipart==0.0.12
 websockets==13.1
 aiofiles==24.1.0
 loguru==0.7.2
-livekit-plugins-noise-cancellation~=0.2
-livekit-agents[deepgram,openai,cartesia,silero,turn-detector]~=1.0
-livekit-agents[elevenlabs]~=1.0
-livekit-agents[google]~=1.0
-livekit-agents[gladia]~=1.0
