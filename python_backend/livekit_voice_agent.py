@@ -78,13 +78,13 @@ async def entrypoint(ctx: agents.JobContext):
         "technology": os.getenv("INTERVIEW_TECHNOLOGY"),
         "company": os.getenv("INTERVIEW_COMPANY"),
         "experience_level": os.getenv("INTERVIEW_EXPERIENCE"),
-        "duration_minutes": int(os.getenv("INTERVIEW_DURATION")),  # Default 20 minutes
+        "duration_minutes": str(os.getenv("INTERVIEW_DURATION")),  # Default 20 minutes
         # Add more as needed
     }
     session = AgentSession(
         stt=gladia.STT(),
-        llm=openai.LLM(model="gpt-4o-mini"),
-        #llm=google.LLM(model="gemini-2.0-flash-exp",temperature=0.8,),
+        #llm=openai.LLM(model="gpt-4o-mini"),
+        llm=google.LLM(model="gemini-2.0-flash-exp",temperature=0.8,),
         #tts=cartesia.TTS(model="sonic-2", voice="f786b574-daa5-4673-aa0c-cbe3e8534c02"),
         tts=elevenlabs.TTS(voice_id="Xb7hH8MSUJpSbSDYk0k2",model="eleven_multilingual_v2"),
         vad=silero.VAD.load(),

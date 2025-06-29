@@ -299,3 +299,29 @@ For issues related to:
 - [Google Cloud](https://cloud.google.com/) for Speech and Gemini AI
 - [Anthropic](https://anthropic.com/) for Claude models
 - [React](https://reactjs.org/) and [Vite](https://vitejs.dev/) for the frontend framework
+
+Naveen:
+python -m venv . 
+.\Scripts\Activate.ps1 
+pip install -r requirements.txt
+pip install "livekit-agents[deepgram,openai,cartesia,silero,turn-detector]~=1.0"
+pip install "livekit-agents[deepgram,openai,cartesia,silero,turn-detector]~=1.0"
+pip install "livekit-plugins-noise-cancellation~=0.2"
+pip install "python-dotenv"
+
+pip install "livekit-agents[elevenlabs]~=1.0"
+pip install "livekit-agents[google]~=1.0"
+
+pip install "livekit-agents[gladia]~=1.0"
+
+python ./python_backend/livekit_voice_agent.py download-files
+
+Eleven Labs Key
+Gladia Key
+
+Livekit testing:
+
+python ./python_backend/livekit_voice_agent.py console
+
+python ./python_backend/main.py
+
