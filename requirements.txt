@@ -21,3 +21,6 @@ python-multipart==0.0.12
 websockets==13.1
 aiofiles==24.1.0
 loguru==0.7.2
+
+honcho==3.4.0
+concurrently==7.6.0

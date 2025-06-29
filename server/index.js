@@ -11,12 +11,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const { spawn } = require('child_process');
-const py = spawn('python3', ['../python_backend/main.py', 'arg1']);
+//const { spawn } = require('child_process');
+//const py = spawn('python3', ['../python_backend/main.py', 'arg1']);
 
-py.stdout.on('data', (data) => {
-  console.log(`Python output: ${data}`);
-});
+//py.stdout.on('data', (data) => {
+//  console.log(`Python output: ${data}`);
+//});
 
 // Middleware
 app.use(cors());
