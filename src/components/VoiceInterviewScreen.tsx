@@ -65,6 +65,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
   const [showProviderSelection, setShowProviderSelection] = useState(false);
   const [showAutoplayPrompt, setShowAutoplayPrompt] = useState(false);
   const [audioTestResult, setAudioTestResult] = useState<'none' | 'success' | 'failed'>('none');
+  const [isProcessingTranscript, setIsProcessingTranscript] = useState(false);
   
   // Audio management refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -578,6 +579,47 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
     }
   };
 
+  // Convert conversation history to interview responses format
+  const convertConversationToResponses = () => {
+    const responses: any[] = [];
+    let currentQuestionText = '';
+    let questionIndex = 1;
+
+    conversationHistory.forEach((entry, index) => {
+      if (entry.speaker === 'ai' && (entry.type === 'question' || entry.type === 'greeting')) {
+        currentQuestionText = entry.message;
+      } else if (entry.speaker === 'user' && currentQuestionText) {
+        // Find the most complete user response for this question
+        let userResponse = entry.message;
+        
+        // Look ahead to see if there are more user responses for the same question
+        for (let i = index + 1; i < conversationHistory.length; i++) {
+          const nextEntry = conversationHistory[i];
+          if (nextEntry.speaker === 'ai' && (nextEntry.type === 'question' || nextEntry.type === 'feedback')) {
+            break; // Next question or feedback, stop looking
+          }
+          if (nextEntry.speaker === 'user') {
+            userResponse = nextEntry.message; // Use the latest user response
+          }
+        }
+
+        responses.push({
+          questionId: `voice-q${questionIndex}`,
+          question: currentQuestionText,
+          response: userResponse,
+          timestamp: entry.timestamp,
+          duration: entry.timestamp - (startTime || Date.now())
+        });
+
+        questionIndex++;
+        currentQuestionText = ''; // Reset for next question
+      }
+    });
+
+    console.log('[VoiceInterview] 📝 Converted conversation to responses:', responses);
+    return responses;
+  };
+
   const endInterview = async () => {
     setIsInterviewActive(false);
     stopListening();
@@ -602,6 +644,37 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
       } catch (error) {
         console.error('[VoiceInterview] Error ending interview:', error);
       }
+    }
+
+    // Process the conversation transcript for analysis
+    try {
+      setIsProcessingTranscript(true);
+      console.log('[VoiceInterview] 🔄 Processing conversation transcript for analysis...');
+      
+      // Convert conversation history to interview responses format
+      const responses = convertConversationToResponses();
+      
+      if (responses.length > 0) {
+        console.log('[VoiceInterview] 📊 Submitting responses to simulator for analysis...');
+        
+        // Submit each response to the simulator
+        for (const response of responses) {
+          await simulator.submitResponse(response.response);
+        }
+        
+        // Mark as ended early if needed
+        simulator.endInterviewEarly();
+        
+        console.log('[VoiceInterview] ✅ Transcript processing completed');
+      } else {
+        console.log('[VoiceInterview] ⚠️ No responses found in conversation history');
+        simulator.endInterviewEarly();
+      }
+    } catch (error) {
+      console.error('[VoiceInterview] ❌ Error processing transcript:', error);
+      simulator.endInterviewEarly();
+    } finally {
+      setIsProcessingTranscript(false);
     }
     
     onEndInterview(simulator);
@@ -687,6 +760,23 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
             </div>
           )}
 
+          {/* Processing Transcript Modal */}
+          {isProcessingTranscript && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-xl flex flex-col items-center">
+                <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-4">
+                  <Brain className="w-8 h-8 animate-pulse" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Processing Interview Transcript</h3>
+                <p className="text-gray-600 mb-4 text-center">
+                  Analyzing your conversation with Pydantic AI agents...<br />
+                  This may take a moment for comprehensive analysis.
+                </p>
+                <Loader className="w-6 h-6 text-purple-500 animate-spin" />
+              </div>
+            </div>
+          )}
+
           {/* Autoplay Prompt Modal */}
           {showAutoplayPrompt && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -721,7 +811,7 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">End Voice Interview?</h3>
                   <p className="text-gray-600 mb-6">
-                    Are you sure you want to end the voice interview? You'll receive analytics based on the conversation so far.
+                    Are you sure you want to end the voice interview? The conversation transcript will be analyzed by our Pydantic AI agents to provide detailed feedback.
                   </p>
                   <div className="flex space-x-4">
                     <button
@@ -1102,12 +1192,19 @@ export const VoiceInterviewScreen: React.FC<VoiceInterviewScreenProps> = ({
                       {aiAgentStatus?.provider?.toUpperCase() || 'Not Set'}
                     </span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-purple-700">Transcript Analysis:</span>
+                    <span className="text-blue-600">
+                      Pydantic AI Ready
+                    </span>
+                  </div>
                   {voiceSession && (
                     <div className="mt-3 pt-2 border-t border-purple-200">
                       <div className="text-xs text-purple-600">
                         <div><strong>Session:</strong> {voiceSession.sessionId}</div>
                         <div><strong>Room:</strong> {voiceSession.roomName}</div>
                         <div><strong>Token Length:</strong> {voiceSession.participantToken?.length || 0}</div>
+                        <div><strong>Responses Captured:</strong> {conversationHistory.filter(h => h.speaker === 'user').length}</div>
                       </div>
                     </div>
                   )}
