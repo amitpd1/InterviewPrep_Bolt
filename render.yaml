@@ -1,0 +1,26 @@
+services:
+
+  services:
+  - type: web
+    name: vite-app
+    env: node
+    buildCommand: npm install
+    startCommand: npm run dev
+    regions:
+      - us-east-1
+      
+  - type: web
+    name: node-app
+    env: node
+    buildCommand: npm install
+    startCommand: node server/index.js
+    regions:
+      - us-east-1
+
+  - type: web
+    name: python-service
+    env: python
+    buildCommand: pip install -r python_backend/requirements.txt
+    startCommand: python python_backend/main.py
+    regions:
+      - us-east-1
