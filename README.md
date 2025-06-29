@@ -301,10 +301,13 @@ For issues related to:
 - [React](https://reactjs.org/) and [Vite](https://vitejs.dev/) for the frontend framework
 
 Naveen:
+
+deactivate
+Remove-Item -Recurse -Force .\Lib, .\Scripts, .\pyvenv.cfg
+
 python -m venv . 
 .\Scripts\Activate.ps1 
 pip install -r requirements.txt
-pip install "livekit-agents[deepgram,openai,cartesia,silero,turn-detector]~=1.0"
 pip install "livekit-agents[deepgram,openai,cartesia,silero,turn-detector]~=1.0"
 pip install "livekit-plugins-noise-cancellation~=0.2"
 pip install "python-dotenv"
