@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "npm-install": "npm install concurrently --save-dev",
     "dev:all": "concurrently \"npm run dev\" \"python ./python_backend/main.py\"",
     "build": "vite build",
     "lint": "eslint .",
